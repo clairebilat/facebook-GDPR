@@ -617,16 +617,14 @@ if __name__ == '__main__':
 
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
-    fig.update_layout(title_text='Monthly new occurrences count of various Facebook actions <br> when 1<standard deviation<10')
+    fig.update_layout(title_text='Monthly count of Facebook actions, <br> per action (std between 1 and 10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename= folder_name + '_results/month_count_actions_1-std-10.html', auto_open=False)
 
 #plot de ceux avec std plus grand que 10
     viz = monthly_count.drop(columns=monthly_count.columns[(monthly_count.std() < 10)], axis=1)
 
-    layout = go.Layout(template="plotly_white")
 
     fig = go.Figure(layout=layout)
 
@@ -639,9 +637,8 @@ if __name__ == '__main__':
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
     fig.update_layout(
-        title_text='Monthly new occurrences count of various Facebook actions <br> when 10<standard deviation')
+        title_text='Monthly count of Facebook actions, <br> per action (std higher than 10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename=folder_name + '_results/month_count_actions_10-std.html', auto_open=False)
 
@@ -700,7 +697,8 @@ if __name__ == '__main__':
                                                                       monthly_inbox_conv.max().sort_values(
                                                                           ascending=False).head(10)[-1]], axis=1)
 
-    layout = go.Layout(template="plotly_white")
+    viz2 = viz2.drop(columns = [col for col in viz2.columns if col in viz1.columns], axis=1)
+
 
     fig = go.Figure(layout=layout)
 
@@ -717,10 +715,9 @@ if __name__ == '__main__':
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
     fig.update_layout(
-        title_text='Monthly exchanged messages count in private conversations <br> for the 10 conversations with the '
-                   'highest total count <br> and for the 10 conversations with the highest month count')
+        title_text='Monthly count of exchanged messages in private <br> conversations, per interlocutor <br> (total count '
+                   'in top10 or month count in top10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename=folder_name + '_results/inbox_conv.html', auto_open=False)
 
@@ -742,10 +739,9 @@ if __name__ == '__main__':
 
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
-    fig.update_layout(title_text='Anonymized monthly exchanged messages count in private conversations <br> for the 10 '
-                                 'conversations with the highest total count <br> and for the 10 conversations with the highest month count')
+    fig.update_layout(title_text='Anonymized monthly count of exchanged messages in private <br> conversations, per interlocutor <br> (total count '
+                   'in top10 or month count in top10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename=folder_name + '_results/inbox_conv_anonymized.html', auto_open=True)
 
@@ -756,8 +752,8 @@ if __name__ == '__main__':
                                                                           monthly_inbox_groups.max().sort_values(
                                                                               ascending=False).head(10)[-1]], axis=1)
 
+    viz2.drop(columns = [col for col in viz2.columns if col in viz1.columns], axis=1)
 
-    fig = go.Figure(layout=layout)
 
     for col in viz1.columns:
         col = str(col)
@@ -782,10 +778,9 @@ if __name__ == '__main__':
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
     fig.update_layout(
-        title_text='Monthly exchanged messages count in group conversations <br> for the 10 conversations with the '
-                   'highest total count <br> and for the 10 conversations with the highest month count')
+        title_text='Monthly count of exchanged messages in group <br> conversations, per interlocutor <br> (total count in top10 or '
+                   'month count in top10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename=folder_name + '_results/inbox_group.html', auto_open=False)
 
@@ -807,12 +802,143 @@ if __name__ == '__main__':
 
     fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
 
-    fig.update_layout(title_text='Anonymized monthly exchanged messages count in group conversations <br> for the 10 '
-                                 'conversations with the highest total count <br> and for the 10 conversations with the highest month count')
+    fig.update_layout(title_text='Anonymized monthly count of exchanged messages in group <br> conversations, per interlocutor <br> (total count in top10 or '
+                   'month count in top10)')
 
-    fig.show()
 
     plotly.offline.plot(fig, filename=folder_name + '_results/inbox_group_anonymized.html', auto_open=False)
+
+    ## test
+    comments_groups_unique = comments_in_groups['group'].unique()
+
+    comments_groups_dict = {}
+    for name in comments_groups_unique:
+        comments_groups_dict[name] = comments_in_groups[comments_in_groups['group'] == name][['group', 'timestamp']]
+
+    viz = comments_in_groups.set_index('timestamp')
+    if not viz.empty:
+        viz = viz['group'].resample('MS').size()
+
+    monthly_comments_groups = pd.DataFrame(index=viz.index, columns=comments_groups_dict.keys())
+
+    for key in comments_groups_dict.keys():
+        if isinstance(comments_groups_dict[key], pd.DataFrame) and not comments_groups_dict[key].empty:
+            temp = comments_groups_dict[key].set_index('timestamp')
+            temp = temp['group'].resample('MS').size()
+            temp.sort_index(inplace=True)
+            monthly_comments_groups[key] = temp
+
+    # garde seulement ceux qui ont un total de messages dans le top 10 ou un pic mensuel dans le top 10
+    viz1 = monthly_comments_groups.drop(columns=monthly_comments_groups.columns[monthly_comments_groups.count() <=
+                                                                                monthly_comments_groups.count().sort_values(
+                                                                                    ascending=False).head(10)[-1]],
+                                        axis=1)
+
+
+    fig = go.Figure(layout=layout)
+
+    for col in viz1.columns:
+        col = str(col)
+        temp = viz1[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=col))
+
+    fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
+
+    fig.update_layout(
+        title_text='Monthly count of posted messages <br> in groups, per group <br> (total count in top10)')
+
+
+    plotly.offline.plot(fig, filename=folder_name + '_results/groups_comment.html', auto_open=False)
+
+    fig = go.Figure(layout=layout)
+
+    legend = 0
+
+    for col in viz1.columns:
+        col = str(col)
+        temp = viz1[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=legend))
+        legend += 1
+
+    fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
+
+    fig.update_layout(title_text='Anonymized monthly count of posted messages <br> in groups, per group <br> (total count in top10)')
+
+
+    plotly.offline.plot(fig, filename=folder_name + '_results/groups_comment_anonymized.html', auto_open=True)
+
+    ## fin du test
+
+    names_searches = search_history['name'].unique()
+    searches_dict = {}
+    for name in names_searches:
+        searches_dict[name] = search_history[search_history['name'] == name][['name', 'timestamp']]
+
+    searches_viz_conv = search_history.set_index('timestamp')
+    searches_viz_conv = searches_viz_conv['name'].resample('MS').size()
+    monthly_searches_conv = pd.DataFrame(index=searches_viz_conv.index, columns=searches_dict.keys())
+
+    for key in searches_dict.keys():
+        if isinstance(searches_dict[key], pd.DataFrame) and not searches_dict[key].empty:
+            temp = searches_dict[key].set_index('timestamp')
+            temp = temp['name'].resample('MS').size()
+            temp.sort_index(inplace=True)
+            monthly_searches_conv[key] = temp
+
+    viz1 = monthly_searches_conv.drop(columns=monthly_searches_conv.columns[monthly_searches_conv.count() <=
+                                                                            monthly_searches_conv.count().sort_values(
+                                                                                ascending=False).head(10)[-1]], axis=1)
+
+    viz2 = monthly_searches_conv.drop(columns=monthly_searches_conv.columns[monthly_searches_conv.max() <=
+                                                                            monthly_searches_conv.max().sort_values(
+                                                                                ascending=False).head(10)[-1]], axis=1)
+    viz2.drop(columns = [col for col in viz2.columns if col in viz1.columns], axis=1)
+
+
+    fig = go.Figure(layout=layout)
+
+    for col in viz1.columns:
+        col = str(col)
+        temp = viz1[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=col))
+
+    for col in viz2.columns:
+        col = str(col)
+        temp = viz2[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=col))
+
+    fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
+
+    fig.update_layout(
+        title_text='Monthly count of searched items, per item <br> (total count in top10 or month count in top10)')
+
+
+    plotly.offline.plot(fig, filename=folder_name + '_results/searches.html', auto_open=True)
+
+
+    fig = go.Figure(layout=layout)
+
+    legend = 0
+    for col in viz1.columns:
+        col = str(col)
+        temp = viz1[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=legend))
+        legend += 1
+
+    for col in viz2.columns:
+        col = str(col)
+        temp = viz2[col].sort_values()
+        fig.add_trace(go.Bar(x=temp.index, y=temp, name=legend))
+        legend += 1
+
+    fig.update_layout(barmode='stack', xaxis_tickangle=-45)  # ou group
+
+    fig.update_layout(
+        title_text='Anonymized monthly count of searched items, per item <br> (total count in top10 or month count in top10)')
+
+
+    plotly.offline.plot(fig, filename=folder_name + '_results/searches_anon.html', auto_open=True)
+
 
     try:
         os.mkdir(folder_name + '_results')
